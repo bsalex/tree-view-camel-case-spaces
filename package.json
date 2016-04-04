@@ -1,7 +1,7 @@
 {
-  "name": "treeViewCamelCaseSpaces",
+  "name": "tree-view-camel-case-spaces",
   "main": "./lib/tree-view-camel-case-spaces",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A short description of your package",
   "keywords": [],
   "repository": "https://github.com/bsalex/tree-view-camel-case-spaces",
