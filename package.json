@@ -2,7 +2,7 @@
   "name": "tree-view-camel-case-spaces",
   "main": "./lib/tree-view-camel-case-spaces",
   "version": "0.2.0",
-  "description": "A short description of your package",
+  "description": "This package adds a spacer between words in file name on tree view if it is written in camel case.",
   "keywords": [],
   "repository": "https://github.com/bsalex/tree-view-camel-case-spaces",
   "license": "MIT",
