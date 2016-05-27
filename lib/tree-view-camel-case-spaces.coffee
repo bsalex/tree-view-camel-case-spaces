@@ -10,74 +10,62 @@ module.exports = TreeViewCamelCaseSpaces =
   activate: (state) ->
     @disposables = new CompositeDisposable
     @disposables.add atom.config.onDidChange 'tree-view-camel-case-spaces.separator', =>
-      @updateNamesForRoots @treeView.list
+      @treeView.updateRoots()
 
     atom.packages.activatePackage('tree-view').then (treeViewPkg) =>
       @treeView = treeViewPkg.mainModule.createView()
       @originalUpdateRoots = @treeView.updateRoots
-      @originalCollapseDirectory = @treeView.collapseDirectory
-      @originalOpenSelectedEntry = @treeView.openSelectedEntry
 
       @treeView.updateRoots = (expansionStates={}) =>
         @originalUpdateRoots.call(@treeView, expansionStates)
-        @updateNamesForRoots @treeView.list
-
-      @treeView.openSelectedEntry = (options={}, expandDirectory=false) =>
-        selectedEntry = @treeView.selectedEntry()
-
-        if selectedEntry.directory
-          @originalOpenSelectedEntry.call(@treeView, options, expandDirectory)
-          @updateNames(selectedEntry)
-
-          if selectedEntry.isExpanded
-            @addDirectorySubscriptions(selectedEntry)
-          else
-            @disposeDirectorySubscriptions(selectedEntry)
-
-        else
-          @originalOpenSelectedEntry.call(@treeView, options, expandDirectory)
-
-      @treeView.collapseDirectory = (isRecursive=false) =>
-        selectedEntry = @treeView.selectedEntry()
-        @originalCollapseDirectory.call(@treeView, isRecursive)
-        @disposeDirectorySubscriptions(selectedEntry)
+        @traverseTree(@treeView.roots)
 
       @treeView.updateRoots()
+
+  traverseTree: (entries) ->
+    Array.from(entries).forEach((entry) =>
+      @updateEntryName(entry)
+
+      if entry.expand != undefined
+        originalExpand = entry.expand
+        originalCollapse = entry.collapse
+
+        entry.expand = (isRecursive) =>
+          result = originalExpand.call(entry, isRecursive)
+          @addDirectorySubscriptions(entry)
+          @traverseTree(entry.entries.childNodes)
+          result
+
+        entry.collapse = (isRecursive) =>
+          @disposeDirectorySubscriptions(entry)
+          originalCollapse.call(entry, isRecursive)
+
+        @traverseTree(entry.entries.childNodes)
+    )
 
   addDirectorySubscriptions: (directory) ->
     directory.treeViewCamelCaseSpacesSubscriptions = new CompositeDisposable
     directory.treeViewCamelCaseSpacesSubscriptions.add directory.directory.onDidAddEntries () =>
-      @updateNames(directory)
+      @updateEntryName(directory)
 
     directory.treeViewCamelCaseSpacesSubscriptions.add directory.directory.onDidRemoveEntries () =>
-      @updateNames(directory)
+      @updateEntryName(directory)
 
   disposeDirectorySubscriptions: (directory) ->
     if directory.treeViewCamelCaseSpacesSubscriptions
       directory.treeViewCamelCaseSpacesSubscriptions.dispose()
 
-  updateNamesForRoots: (roots) ->
-    Array.from(roots).forEach (root) =>
-      @updateNames(root)
-      directories = Array.from(root.querySelectorAll('[is="tree-view-directory"]'))
-      directories.forEach (directory) =>
-        @disposeDirectorySubscriptions(directory)
-        @addDirectorySubscriptions(directory)
-
   getEntryOriginalName: (nameElement) ->
     nameElement.dataset.name || nameElement.parentNode.dataset.name
 
-  updateNames: (list) ->
-    Array.from(
-      list.querySelectorAll('.name')
-    ).forEach (element) =>
-      element.textContent = separateCamelCase(
-        @getEntryOriginalName(element),
-        atom.config.get('tree-view-camel-case-spaces.separator')
-      )
+  updateEntryName: (list) ->
+    element = list.querySelector(':scope > .header > .name, :scope > .name')
+    element.textContent = separateCamelCase(
+      @getEntryOriginalName(element),
+      atom.config.get('tree-view-camel-case-spaces.separator')
+    )
 
   deactivate: ->
     @disposables.dispose()
-    @treeView.openSelectedEntry = @originalOpenSelectedEntry
     @treeView.updateRoots = @originalUpdateRoots
     @treeView.updateRoots()
