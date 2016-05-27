@@ -7,6 +7,9 @@ module.exports = TreeViewCamelCaseSpaces =
       type: 'string'
       default: '\u00B7'
 
+  debugMode: false
+  log: () -> @debugMode && console.debug.apply(console, arguments)
+
   activate: (state) ->
     @disposables = new CompositeDisposable
     @disposables.add atom.config.onDidChange 'tree-view-camel-case-spaces.separator', =>
@@ -18,6 +21,7 @@ module.exports = TreeViewCamelCaseSpaces =
 
       @treeView.updateRoots = (expansionStates={}) =>
         @originalUpdateRoots.call(@treeView, expansionStates)
+        @log 'tree-view-camel-case-spaces: update roots'
         @traverseTree(@treeView.roots)
 
       @treeView.updateRoots()
@@ -27,18 +31,28 @@ module.exports = TreeViewCamelCaseSpaces =
       @updateEntryName(entry)
 
       if entry.expand != undefined
-        originalExpand = entry.expand
-        originalCollapse = entry.collapse
+        @log "tree-view-camel-case-spaces: patching #{entry.directoryName.title}"
 
-        entry.expand = (isRecursive) =>
-          result = originalExpand.call(entry, isRecursive)
-          @addDirectorySubscriptions(entry)
-          @traverseTree(entry.entries.childNodes)
-          result
+        if !entry.treeViewCamelCasePatched
+          originalExpand = entry.expand
+          entry.expand = (isRecursive) =>
+            @log "tree-view-camel-case-spaces: expand #{entry.directoryName.title}"
 
-        entry.collapse = (isRecursive) =>
-          @disposeDirectorySubscriptions(entry)
-          originalCollapse.call(entry, isRecursive)
+            result = originalExpand.call(entry, isRecursive)
+            @addDirectorySubscriptions(entry)
+            @traverseTree(entry.entries.childNodes)
+            result
+
+          originalCollapse = entry.collapse
+          entry.collapse = (isRecursive) =>
+            @log "tree-view-camel-case-spaces: collapse #{entry.directoryName.title}"
+
+            @disposeDirectorySubscriptions(entry)
+            originalCollapse.call(entry, isRecursive)
+
+          entry.treeViewCamelCasePatched = true;
+        else
+          @log "tree-view-camel-case-spaces: patching skipped #{entry.directoryName.title}"
 
         @traverseTree(entry.entries.childNodes)
     )
