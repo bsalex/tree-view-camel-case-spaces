@@ -39,16 +39,20 @@ module.exports = TreeViewCamelCaseSpaces =
             @log "tree-view-camel-case-spaces: expand #{entry.directoryName.title}"
 
             result = originalExpand.call(entry, isRecursive)
-            @addDirectorySubscriptions(entry)
             @traverseTree(entry.entries.childNodes)
             result
 
           originalCollapse = entry.collapse
           entry.collapse = (isRecursive) =>
             @log "tree-view-camel-case-spaces: collapse #{entry.directoryName.title}"
-
-            @disposeDirectorySubscriptions(entry)
             originalCollapse.call(entry, isRecursive)
+
+          originalReload = entry.directory.reload
+          entry.directory.reload = () =>
+            @log "tree-view-camel-case-spaces: reload #{entry.directoryName.title}"
+            result = originalReload.call(entry.directory)
+            @traverseTree(entry.entries.childNodes)
+            result
 
           entry.treeViewCamelCasePatched = true;
         else
@@ -57,23 +61,11 @@ module.exports = TreeViewCamelCaseSpaces =
         @traverseTree(entry.entries.childNodes)
     )
 
-  addDirectorySubscriptions: (directory) ->
-    directory.treeViewCamelCaseSpacesSubscriptions = new CompositeDisposable
-    directory.treeViewCamelCaseSpacesSubscriptions.add directory.directory.onDidAddEntries () =>
-      @updateEntryName(directory)
-
-    directory.treeViewCamelCaseSpacesSubscriptions.add directory.directory.onDidRemoveEntries () =>
-      @updateEntryName(directory)
-
-  disposeDirectorySubscriptions: (directory) ->
-    if directory.treeViewCamelCaseSpacesSubscriptions
-      directory.treeViewCamelCaseSpacesSubscriptions.dispose()
-
   getEntryOriginalName: (nameElement) ->
     nameElement.dataset.name || nameElement.parentNode.dataset.name
 
-  updateEntryName: (list) ->
-    element = list.querySelector(':scope > .header > .name, :scope > .name')
+  updateEntryName: (entryNode) ->
+    element = entryNode.querySelector(':scope > .header > .name, :scope > .name')
     element.textContent = separateCamelCase(
       @getEntryOriginalName(element),
       atom.config.get('tree-view-camel-case-spaces.separator')
