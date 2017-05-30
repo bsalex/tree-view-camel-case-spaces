@@ -16,7 +16,7 @@ module.exports = TreeViewCamelCaseSpaces =
       @treeView.updateRoots()
 
     atom.packages.activatePackage('tree-view').then (treeViewPkg) =>
-      @treeView = treeViewPkg.mainModule.createView()
+      @treeView = treeViewPkg.mainModule.getTreeViewInstance()
       @originalUpdateRoots = @treeView.updateRoots
 
       @treeView.updateRoots = (expansionStates={}) =>
